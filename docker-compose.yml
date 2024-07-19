@@ -1,0 +1,63 @@
+version: "3.8"
+
+services:
+
+  nginx:
+    build: ./nginx
+    container_name: "nginx_cont"
+    restart: always
+    ports:
+      - 80:80
+    depends_on:
+      - django_app
+    deploy:
+      resources:
+        limits:
+          cpus: '1' 
+          memory: 512M  
+
+  django_app:
+    build:
+      context: ./django
+    container_name: "django_cont"
+    restart: always
+    ports:
+      - 8000:8000
+    command: gunicorn core.wsgi --bind 0.0.0.0:8000
+    env_file:
+      - "./django/.env"
+    depends_on:
+      - db
+
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5' 
+          memory: 512M  
+
+  db:
+    image: docker.arvancloud.ir/mysql
+    container_name: "db_cont"
+    restart: always
+    environment:
+      - MYSQL_ROOT_PASSWORD=admin
+      - MYSQL_USER=admin
+      - MYSQL_PASSWORD=admin
+      - MYSQL_DATABASE=test_db
+    volumes:
+      - ./data/mysql/db:/var/lib/mysql
+
+  django_migrations:
+    build:
+      context: ./django
+    container_name: "django_migrations_cont"
+    restart: always
+    command: >
+      sh -c "
+        python manage.py makemigrations &&
+        python manage.py migrate
+      "
+    env_file:
+      - "./django/.env"
+    depends_on:
+      - db
